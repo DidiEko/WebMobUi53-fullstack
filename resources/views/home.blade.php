@@ -8,7 +8,7 @@
     </x-slot>
 
     <h1 class="text-2xl font-bold dark:text-white">
-        {{ config('app.name') }}
+        {{ config('app.name') }} - Cindy Projet
     </h1>
 
     <p class="mt-4 dark:text-gray-300">

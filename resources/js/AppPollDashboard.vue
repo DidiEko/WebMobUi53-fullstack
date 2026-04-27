@@ -9,17 +9,12 @@ const props = defineProps({
   loginUrl: { type: String, default: null },
 });
 
-const { fetchApiToRef } = useFetchApi();
+const { fetchApiToRef, fetchApi } = useFetchApi();
 
 const { data: getResult, error: getError, fetchNow } = fetchApiToRef({ url: 'polls/' });
 const { data: postResult, error: postError } = fetchApiToRef({ url: '/foo', data: { id: 1 } });
 
-// ⭐️ Fonction temporaire pour tester la création d'un sondage.
-// Elle sera remplacée plus tard par un vrai formulaire Vue.
-const { fetchApi } = useFetchApi();
-
-// ⭐️ Données du formulaire de création.
-// ref() rend les valeurs réactives : si elles changent, Vue met à jour l'interface.
+// Données du formulaire de création.
 const newPoll = ref({
   title: '',
   question: '',
@@ -27,58 +22,70 @@ const newPoll = ref({
   option2: '',
 });
 
-  // Crée un sondage à partir des champs du formulaire.
-  async function createPoll() {
-    try {
-      await fetchApi({
-        url: 'polls/',
-        method: 'POST',
-        data: {
-          title: newPoll.value.title,
-          question: newPoll.value.question,
-          options: [
-            { label: newPoll.value.option1 },
-            { label: newPoll.value.option2 },
-          ],
-
-          // Pour l’instant, on crée les sondages en brouillon.
-          is_draft: true,
-
-          // Pour l’instant, choix unique uniquement.
-          allow_multiple_choices: false,
-
-          // Bonus désactivé pour rester simple.
-          allow_vote_change: false,
-
-          // Les résultats seront visibles publiquement.
-          results_public: true,
-
-          // Pas de durée pour l’instant.
-          duration: null,
-        },
-      });
-
-      // On vide le formulaire après la création.
-      newPoll.value = {
-        title: '',
-        question: '',
-        option1: '',
-        option2: '',
-      };
-
-      // On recharge la liste des sondages.
-      fetchNow();
-    } catch (err) {
-      handleError(err);
-    }
-  }
-
 function handleError(err) {
   if (!err) return;
+
   if (err?.status === 401) {
     window.location.href = props.loginUrl;
   } else {
     console.error(err);
+  }
+}
+
+// Crée un sondage à partir du formulaire.
+async function createPoll() {
+  try {
+    await fetchApi({
+      url: 'polls/',
+      method: 'POST',
+      data: {
+        title: newPoll.value.title,
+        question: newPoll.value.question,
+        options: [
+          { label: newPoll.value.option1 },
+          { label: newPoll.value.option2 },
+        ],
+        is_draft: true,
+        allow_multiple_choices: false,
+        allow_vote_change: false,
+        results_public: true,
+        duration: null,
+      },
+    });
+
+    // On vide le formulaire.
+    newPoll.value = {
+      title: '',
+      question: '',
+      option1: '',
+      option2: '',
+    };
+
+    // On recharge la liste des sondages.
+    fetchNow();
+  } catch (err) {
+    handleError(err);
+  }
+}
+
+// Supprime un sondage après confirmation.
+async function deletePoll(poll) {
+  const confirmed = confirm(`Supprimer le sondage "${poll.question}" ?`);
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    await fetchApi({
+      url: `polls/${poll.id}`,
+      method: 'DELETE',
+    });
+
+    // On recharge la liste après suppression.
+    fetchNow();
+  } catch (err) {
+    handleError(err);
   }
 }
 
@@ -92,8 +99,7 @@ usePolling(fetchNow);
   <main class="min-h-screen p-6">
     <h1 class="mb-4 text-xl font-semibold">Mes sondages</h1>
 
-    <!-- Formulaire simple de création d'un sondage.
-         Pour commencer, on garde seulement deux options obligatoires. -->
+    <!-- Formulaire simple de création d'un sondage. -->
     <form class="mb-6 space-y-3" @submit.prevent="createPoll">
       <div>
         <label class="block font-medium">Titre</label>
@@ -146,9 +152,8 @@ usePolling(fetchNow);
       </button>
     </form>
 
-    <!-- Tableau existant du prof.
-         On lui donne maintenant les sondages récupérés depuis l'API. -->
-    <PollTable :polls="getResult || []" />
+    <!-- Tableau des sondages récupérés depuis l'API. -->
+    <PollTable :polls="getResult || []" @delete-poll="deletePoll" />
 
     <section class="mt-6">
       <h2>GET /api/v1/polls</h2>

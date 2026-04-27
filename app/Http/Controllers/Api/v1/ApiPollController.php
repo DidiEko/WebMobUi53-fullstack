@@ -11,31 +11,24 @@ use Illuminate\Support\Str;
 class ApiPollController extends Controller
 {
     /**
-     * Display a listing of the authenticated user's polls.
+     * Affiche la liste des sondages de l'utilisateur connecté.
      */
     public function index(Request $request)
     {
-        $polls = $request->user()->polls()->orderBy('created_at', 'desc')->get();
+        $polls = $request->user()
+            ->polls()
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return $polls;
     }
 
-        /**
-     * ⭐️ Crée un nouveau sondage avec ses options.
-     *
-     * Cette méthode sera appelée par le frontend Vue
-     * quand l'utilisateur voudra créer un sondage.
+    /**
+     * Crée un nouveau sondage avec ses options.
      */
     public function store(Request $request)
     {
-        /**
-         * Validation des données reçues depuis Vue.
-         *
-         * Laravel vérifie ici que :
-         * - la question est obligatoire
-         * - il y a au minimum deux options
-         * - chaque option possède un label
-         */
+        // On valide les données envoyées par Vue.
         $validated = $request->validate([
             'title' => ['nullable', 'string', 'max:255'],
             'question' => ['required', 'string', 'max:255'],
@@ -48,15 +41,8 @@ class ApiPollController extends Controller
             'duration' => ['nullable', 'integer', 'min:60'],
         ]);
 
-        /**
-         * Transaction :
-         * si la création du sondage ou des options échoue,
-         * Laravel annule tout.
-         *
-         * Cela évite d'avoir un sondage créé sans ses options.
-         */
+        // Transaction : soit le sondage ET les options sont créés, soit rien n'est créé.
         $poll = DB::transaction(function () use ($request, $validated) {
-            // Par défaut, un nouveau sondage est créé comme brouillon.
             $isDraft = $validated['is_draft'] ?? true;
 
             // Création du sondage principal.
@@ -65,7 +51,7 @@ class ApiPollController extends Controller
                 'title' => $validated['title'] ?? null,
                 'question' => $validated['question'],
 
-                // Token secret utilisé plus tard dans le lien de partage.
+                // Token utilisé plus tard pour partager le sondage.
                 'secret_token' => Str::random(40),
 
                 'is_draft' => $isDraft,
@@ -73,11 +59,7 @@ class ApiPollController extends Controller
                 'allow_vote_change' => $validated['allow_vote_change'] ?? false,
                 'results_public' => $validated['results_public'] ?? false,
                 'duration' => $validated['duration'] ?? null,
-
-                // Si le sondage n'est pas un brouillon, il démarre directement.
                 'started_at' => $isDraft ? null : now(),
-
-                // Si une durée est donnée, on calcule automatiquement la date de fin.
                 'ends_at' => (!$isDraft && !empty($validated['duration']))
                     ? now()->addSeconds($validated['duration'])
                     : null,
@@ -93,21 +75,38 @@ class ApiPollController extends Controller
             return $poll;
         });
 
-        // Réponse JSON envoyée au frontend.
-        return response()->json(
-            $poll->load('options'),
-            201
-        );
+        return response()->json($poll->load('options'), 201);
     }
 
     /**
-     * Display the specified poll by its secret token.
+     * Supprime un sondage.
+     */
+    public function destroy(Request $request, Poll $poll)
+    {
+        // Sécurité : seul le créateur du sondage peut le supprimer.
+        if ($poll->user_id !== $request->user()->id) {
+            return response()->json([
+                'message' => 'Action interdite.',
+            ], 403);
+        }
+
+        $poll->delete();
+
+        return response()->json([
+            'message' => 'Sondage supprimé.',
+        ]);
+    }
+
+    /**
+     * Affiche un sondage grâce à son token secret.
      */
     public function show(string $token)
     {
         $poll = Poll::with(['options' => function ($query) {
             $query->withCount('votes');
-        }])->where('secret_token', $token)->first();
+        }])
+            ->where('secret_token', $token)
+            ->first();
 
         if (!$poll) {
             return response()->json(['message' => 'Poll not found.'], 404);

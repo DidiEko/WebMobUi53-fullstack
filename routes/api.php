@@ -31,6 +31,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Création d'un nouveau sondage.
     Route::post('/v1/polls', [ApiPollController::class, 'store']);
 
+    // Modification d'un sondage existant.
+    // Pour rester simple, on autorise seulement la modification d'un brouillon.
+    Route::put('/v1/polls/{poll}', [ApiPollController::class, 'update']);
+
     // Suppression d'un sondage.
     Route::delete('/v1/polls/{poll}', [ApiPollController::class, 'destroy']);
 });

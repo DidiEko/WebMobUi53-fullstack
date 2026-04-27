@@ -79,6 +79,60 @@ class ApiPollController extends Controller
     }
 
     /**
+     * Modifie un sondage existant.
+     *
+     * Pour garder le projet simple et cohérent :
+     * - seul le créateur peut modifier son sondage
+     * - seul un sondage encore en brouillon peut être modifié
+     */
+    public function update(Request $request, Poll $poll)
+    {
+        // Sécurité : seul le créateur du sondage peut le modifier.
+        if ($poll->user_id !== $request->user()->id) {
+            return response()->json([
+                'message' => 'Action interdite.',
+            ], 403);
+        }
+
+        // Règle simple : un sondage déjà lancé ne peut plus être modifié.
+        if (!$poll->is_draft) {
+            return response()->json([
+                'message' => 'Un sondage lancé ne peut plus être modifié.',
+            ], 422);
+        }
+
+        // On valide les données envoyées par Vue.
+        $validated = $request->validate([
+            'title' => ['nullable', 'string', 'max:255'],
+            'question' => ['required', 'string', 'max:255'],
+            'options' => ['required', 'array', 'min:2'],
+            'options.*.label' => ['required', 'string', 'max:255'],
+        ]);
+
+        // Transaction : on modifie le sondage et ses options ensemble.
+        DB::transaction(function () use ($poll, $validated) {
+            // Mise à jour du sondage principal.
+            $poll->update([
+                'title' => $validated['title'] ?? null,
+                'question' => $validated['question'],
+            ]);
+
+            // Version simple :
+            // comme le sondage est encore en brouillon, il n'a pas encore de votes.
+            // On peut donc supprimer les anciennes options et recréer les nouvelles.
+            $poll->options()->delete();
+
+            foreach ($validated['options'] as $option) {
+                $poll->options()->create([
+                    'label' => $option['label'],
+                ]);
+            }
+        });
+
+        return response()->json($poll->refresh()->load('options'));
+    }
+
+    /**
      * Supprime un sondage.
      */
     public function destroy(Request $request, Poll $poll)

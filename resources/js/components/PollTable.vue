@@ -5,7 +5,8 @@ defineProps({
 
 // Le composant enfant ne supprime pas directement.
 // Il envoie un événement au composant parent.
-const emit = defineEmits(['delete-poll']);
+// On ajoute aussi edit-poll pour prévenir le parent qu'on veut modifier un sondage.
+const emit = defineEmits(['delete-poll', 'edit-poll']);
 </script>
 
 <template>
@@ -34,6 +35,14 @@ const emit = defineEmits(['delete-poll']);
         <td class="border px-3 py-2">{{ poll.ends_at || '-' }}</td>
 
         <td class="border px-3 py-2">
+          <button
+            type="button"
+            class="mr-2 rounded bg-blue-600 px-3 py-1 text-white hover:bg-blue-700"
+            @click="emit('edit-poll', poll)"
+          >
+            Modifier
+          </button>
+
           <button
             type="button"
             class="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"

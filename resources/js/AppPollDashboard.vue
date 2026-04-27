@@ -22,6 +22,10 @@ const newPoll = ref({
   option2: '',
 });
 
+// Contient l'id du sondage actuellement en cours de modification.
+// Si la valeur est null, le formulaire sert à créer un nouveau sondage.
+const editingPollId = ref(null);
+
 function handleError(err) {
   if (!err) return;
 
@@ -32,40 +36,71 @@ function handleError(err) {
   }
 }
 
-// Crée un sondage à partir du formulaire.
+// Crée ou modifie un sondage à partir du formulaire.
 async function createPoll() {
   try {
-    await fetchApi({
-      url: 'polls/',
-      method: 'POST',
-      data: {
-        title: newPoll.value.title,
-        question: newPoll.value.question,
-        options: [
-          { label: newPoll.value.option1 },
-          { label: newPoll.value.option2 },
-        ],
-        is_draft: true,
-        allow_multiple_choices: false,
-        allow_vote_change: false,
-        results_public: true,
-        duration: null,
-      },
-    });
-
-    // On vide le formulaire.
-    newPoll.value = {
-      title: '',
-      question: '',
-      option1: '',
-      option2: '',
+    const data = {
+      title: newPoll.value.title,
+      question: newPoll.value.question,
+      options: [
+        { label: newPoll.value.option1 },
+        { label: newPoll.value.option2 },
+      ],
+      is_draft: true,
+      allow_multiple_choices: false,
+      allow_vote_change: false,
+      results_public: true,
+      duration: null,
     };
+
+    if (editingPollId.value) {
+      // Si editingPollId contient un id, on modifie un sondage existant.
+      await fetchApi({
+        url: `polls/${editingPollId.value}`,
+        method: 'PUT',
+        data,
+      });
+    } else {
+      // Sinon, on crée un nouveau sondage.
+      await fetchApi({
+        url: 'polls/',
+        method: 'POST',
+        data,
+      });
+    }
+
+    // On vide le formulaire et on quitte le mode modification si besoin.
+    cancelEdit();
 
     // On recharge la liste des sondages.
     fetchNow();
   } catch (err) {
     handleError(err);
   }
+}
+
+// Remplit le formulaire avec les données du sondage choisi.
+function editPoll(poll) {
+  editingPollId.value = poll.id;
+
+  newPoll.value = {
+    title: poll.title || '',
+    question: poll.question || '',
+    option1: poll.options?.[0]?.label || '',
+    option2: poll.options?.[1]?.label || '',
+  };
+}
+
+// Annule la modification et remet le formulaire à zéro.
+function cancelEdit() {
+  editingPollId.value = null;
+
+  newPoll.value = {
+    title: '',
+    question: '',
+    option1: '',
+    option2: '',
+  };
 }
 
 // Supprime un sondage après confirmation.
@@ -99,7 +134,7 @@ usePolling(fetchNow);
   <main class="min-h-screen p-6">
     <h1 class="mb-4 text-xl font-semibold">Mes sondages</h1>
 
-    <!-- Formulaire simple de création d'un sondage. -->
+    <!-- Formulaire simple de création ou de modification d'un sondage. -->
     <form class="mb-6 space-y-3" @submit.prevent="createPoll">
       <div>
         <label class="block font-medium">Titre</label>
@@ -148,12 +183,26 @@ usePolling(fetchNow);
         type="submit"
         class="rounded bg-teal-600 px-4 py-2 text-white hover:bg-teal-700"
       >
-        Créer le sondage
+        {{ editingPollId ? 'Modifier le sondage' : 'Créer le sondage' }}
+      </button>
+
+      <!-- Bouton affiché uniquement quand on est en mode modification. -->
+      <button
+        v-if="editingPollId"
+        type="button"
+        class="ml-2 rounded bg-gray-500 px-4 py-2 text-white hover:bg-gray-600"
+        @click="cancelEdit"
+      >
+        Annuler
       </button>
     </form>
 
     <!-- Tableau des sondages récupérés depuis l'API. -->
-    <PollTable :polls="getResult || []" @delete-poll="deletePoll" />
+    <PollTable
+      :polls="getResult || []"
+      @delete-poll="deletePoll"
+      @edit-poll="editPoll"
+    />
 
     <section class="mt-6">
       <h2>GET /api/v1/polls</h2>

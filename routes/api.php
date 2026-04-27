@@ -1,25 +1,31 @@
 <?php
 
-use App\Http\Controllers\Api\v1\ApiPostController;
 use App\Http\Controllers\Api\v1\ApiFooController;
 use App\Http\Controllers\Api\v1\ApiPollController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+// Route publique : permet d'accéder à un sondage via son token secret.
+// Elle sera utilisée plus tard pour la page de vote.
+Route::get('/v1/polls/token/{token}', [ApiPollController::class, 'showByToken']);
 
-Route::apiResource('v1/posts', ApiPostController::class)
-    ->middlewareFor(['index', 'show'], ['auth:sanctum', 'abilities:posts:read'])
-    ->middlewareFor(['store'], ['auth:sanctum', 'abilities:posts:create'])
-    ->middlewareFor(['update'], ['auth:sanctum', 'abilities:posts:update'])
-    ->middlewareFor(['destroy'], ['auth:sanctum', 'abilities:posts:delete']);
-
-Route::get('/v1/polls/{token}', [ApiPollController::class, 'show']);
-
+// Toutes les routes dans ce groupe nécessitent un utilisateur connecté.
+// auth:sanctum vérifie que la personne est authentifiée.
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/v1/foo', [ApiFooController::class, 'show']);
     Route::post('/v1/foo', [ApiFooController::class, 'store']);
+
+    // Liste des sondages de l'utilisateur connecté.
     Route::get('/v1/polls', [ApiPollController::class, 'index']);
+
+    // Création d'un sondage.
+    Route::post('/v1/polls', [ApiPollController::class, 'store']);
+
+    // Modification d'un sondage existant.
+    Route::put('/v1/polls/{poll}', [ApiPollController::class, 'update']);
+
+    // Suppression d'un sondage.
+    Route::delete('/v1/polls/{poll}', [ApiPollController::class, 'destroy']);
+
+    // Lancement d'un sondage brouillon.
+    Route::post('/v1/polls/{poll}/start', [ApiPollController::class, 'start']);
 });

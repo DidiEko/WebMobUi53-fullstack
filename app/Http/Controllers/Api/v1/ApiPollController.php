@@ -132,6 +132,43 @@ class ApiPollController extends Controller
         return response()->json($poll->refresh()->load('options'));
     }
 
+        ⭐️/**
+     * Démarre un sondage encore en brouillon.
+     *
+     * Cela signifie :
+     * - le sondage n'est plus un brouillon
+     * - la date de début est enregistrée
+     * - la date de fin est calculée si une durée existe
+     */
+    public function start(Request $request, Poll $poll)
+    {
+        // Sécurité : seul le créateur du sondage peut le démarrer.
+        if ($poll->user_id !== $request->user()->id) {
+            return response()->json([
+                'message' => 'Action interdite.',
+            ], 403);
+        }
+
+        // On évite de démarrer deux fois le même sondage.
+        if (!$poll->is_draft) {
+            return response()->json([
+                'message' => 'Ce sondage est déjà démarré.',
+            ], 422);
+        }
+
+        $poll->update([
+            'is_draft' => false,
+            'started_at' => now(),
+
+            // Si une durée existe, on calcule automatiquement la date de fin.
+            'ends_at' => $poll->duration
+                ? now()->addSeconds($poll->duration)
+                : null,
+        ]);
+
+        return response()->json($poll->refresh()->load('options'));
+    }
+
     /**
      * Supprime un sondage.
      */

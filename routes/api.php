@@ -35,6 +35,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Pour rester simple, on autorise seulement la modification d'un brouillon.
     Route::put('/v1/polls/{poll}', [ApiPollController::class, 'update']);
 
-    // Suppression d'un sondage.
+    // Démarrage d'un sondage brouillon.
+    // Cela permet de passer is_draft de true à false.
+    Route::post('/v1/polls/{poll}/start', [ApiPollController::class, 'start']);
+
+    ⭐️// Suppression d'un sondage.
     Route::delete('/v1/polls/{poll}', [ApiPollController::class, 'destroy']);
 });

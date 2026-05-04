@@ -124,6 +124,27 @@ async function deletePoll(poll) {
   }
 }
 
+// Démarre un sondage brouillon.
+async function startPoll(poll) {
+  const confirmed = confirm(`Démarrer le sondage "${poll.question}" ?`);
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    await fetchApi({
+      url: `polls/${poll.id}/start`,
+      method: 'POST',
+    });
+
+    // On recharge la liste après démarrage.
+    fetchNow();
+  } catch (err) {
+    handleError(err);
+  }
+}
+
 watch(getError, err => handleError(err));
 watch(postError, handleError);
 

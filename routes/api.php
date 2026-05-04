@@ -41,4 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ⭐️Suppression d'un sondage.
     Route::delete('/v1/polls/{poll}', [ApiPollController::class, 'destroy']);
+
+    // ⭐️Permet à un utilisateur de voter sur un sondage via son token.
+    Route::post('/v1/polls/{token}/vote', [ApiPollController::class, 'vote']);
 });

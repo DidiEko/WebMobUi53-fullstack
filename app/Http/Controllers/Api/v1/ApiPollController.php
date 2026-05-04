@@ -132,7 +132,7 @@ class ApiPollController extends Controller
         return response()->json($poll->refresh()->load('options'));
     }
 
-        /** ⭐️
+    /** ⭐️
      * Démarre un sondage encore en brouillon.
      *
      * Cela signifie :
@@ -204,5 +204,39 @@ class ApiPollController extends Controller
         }
 
         return $poll;
+    }
+
+    /**
+     * Permet de voter sur un sondage public via son token.
+     */
+    public function vote(Request $request, string $token)
+    {
+        // On récupère le sondage via son token.
+        $poll = Poll::where('secret_token', $token)->first();
+
+        if (!$poll) {
+            return response()->json(['message' => 'Sondage introuvable.'], 404);
+        }
+
+        // On empêche de voter sur un brouillon.
+        if ($poll->is_draft) {
+            return response()->json(['message' => 'Ce sondage n’est pas encore actif.'], 422);
+        }
+
+        // Validation : on attend un poll_option_id
+        $validated = $request->validate([
+            'poll_option_id' => ['required', 'exists:poll_options,id'],
+        ]);
+
+        // Création du vote
+        $poll->votes()->create([
+            'poll_id' => $poll->id,
+            'user_id' => auth()->id(), // peut être null si non connecté
+            'poll_option_id' => $validated['poll_option_id'],
+        ]);
+
+        return response()->json([
+            'message' => 'Vote enregistré',
+        ]);
     }
 }

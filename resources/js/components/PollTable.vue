@@ -41,7 +41,7 @@ const emit = defineEmits(['delete-poll', 'edit-poll', 'start-poll']);
           <a
             v-if="poll.secret_token"
             class="text-blue-600 underline"
-            :href="`/polls/${poll.secret_token}`"
+            :href="`/polls/vote/${poll.secret_token}`"
             target="_blank"
           >
             Ouvrir

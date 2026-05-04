@@ -41,3 +41,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('tokens', TokenController::class)->only(['index', 'create', 'store', 'destroy']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
 });
+
+// Page publique pour afficher un sondage grâce à son token.
+Route::get('/polls/vote/{token}', function (string $token) {
+    return view('polls.vote', ['token' => $token]);
+});

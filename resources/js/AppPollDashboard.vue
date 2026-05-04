@@ -159,71 +159,41 @@ usePolling(fetchNow);
     <form class="mb-6 space-y-3" @submit.prevent="createPoll">
       <div>
         <label class="block font-medium">Titre</label>
-        <input
-          v-model="newPoll.title"
-          type="text"
-          class="w-full rounded border px-3 py-2"
-          placeholder="Exemple : Sondage de satisfaction"
-        />
+        <input v-model="newPoll.title" type="text" class="w-full rounded border px-3 py-2"
+          placeholder="Exemple : Sondage de satisfaction" />
       </div>
 
       <div>
         <label class="block font-medium">Question</label>
-        <input
-          v-model="newPoll.question"
-          type="text"
-          class="w-full rounded border px-3 py-2"
-          placeholder="Exemple : Quelle option préfères-tu ?"
-          required
-        />
+        <input v-model="newPoll.question" type="text" class="w-full rounded border px-3 py-2"
+          placeholder="Exemple : Quelle option préfères-tu ?" required />
       </div>
 
       <div>
         <label class="block font-medium">Option 1</label>
-        <input
-          v-model="newPoll.option1"
-          type="text"
-          class="w-full rounded border px-3 py-2"
-          placeholder="Exemple : Option A"
-          required
-        />
+        <input v-model="newPoll.option1" type="text" class="w-full rounded border px-3 py-2"
+          placeholder="Exemple : Option A" required />
       </div>
 
       <div>
         <label class="block font-medium">Option 2</label>
-        <input
-          v-model="newPoll.option2"
-          type="text"
-          class="w-full rounded border px-3 py-2"
-          placeholder="Exemple : Option B"
-          required
-        />
+        <input v-model="newPoll.option2" type="text" class="w-full rounded border px-3 py-2"
+          placeholder="Exemple : Option B" required />
       </div>
 
-      <button
-        type="submit"
-        class="rounded bg-teal-600 px-4 py-2 text-white hover:bg-teal-700"
-      >
+      <button type="submit" class="rounded bg-teal-600 px-4 py-2 text-white hover:bg-teal-700">
         {{ editingPollId ? 'Modifier le sondage' : 'Créer le sondage' }}
       </button>
 
       <!-- Bouton affiché uniquement quand on est en mode modification. -->
-      <button
-        v-if="editingPollId"
-        type="button"
-        class="ml-2 rounded bg-gray-500 px-4 py-2 text-white hover:bg-gray-600"
-        @click="cancelEdit"
-      >
+      <button v-if="editingPollId" type="button" class="ml-2 rounded bg-gray-500 px-4 py-2 text-white hover:bg-gray-600"
+        @click="cancelEdit">
         Annuler
       </button>
     </form>
 
     <!-- Tableau des sondages récupérés depuis l'API. -->
-    <PollTable
-      :polls="getResult || []"
-      @delete-poll="deletePoll"
-      @edit-poll="editPoll"
-    />
+    <PollTable :polls="getResult || []" @delete-poll="deletePoll" @edit-poll="editPoll" @start-poll="startPoll" />
 
     <section class="mt-6">
       <h2>GET /api/v1/polls</h2>

@@ -132,7 +132,7 @@ class ApiPollController extends Controller
         return response()->json($poll->refresh()->load('options'));
     }
 
-        ⭐️/**
+        /** ⭐️
      * Démarre un sondage encore en brouillon.
      *
      * Cela signifie :

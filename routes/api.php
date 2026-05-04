@@ -39,6 +39,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Cela permet de passer is_draft de true à false.
     Route::post('/v1/polls/{poll}/start', [ApiPollController::class, 'start']);
 
-    ⭐️// Suppression d'un sondage.
+    // ⭐️Suppression d'un sondage.
     Route::delete('/v1/polls/{poll}', [ApiPollController::class, 'destroy']);
 });

@@ -12,7 +12,6 @@ const props = defineProps({
 const { fetchApiToRef, fetchApi } = useFetchApi();
 
 const { data: getResult, error: getError, fetchNow } = fetchApiToRef({ url: 'polls/' });
-const { data: postResult, error: postError } = fetchApiToRef({ url: '/foo', data: { id: 1 } });
 
 // Données du formulaire de création.
 const newPoll = ref({
@@ -146,7 +145,6 @@ async function startPoll(poll) {
 }
 
 watch(getError, err => handleError(err));
-watch(postError, handleError);
 
 usePolling(fetchNow);
 </script>
@@ -194,17 +192,5 @@ usePolling(fetchNow);
 
     <!-- Tableau des sondages récupérés depuis l'API. -->
     <PollTable :polls="getResult || []" @delete-poll="deletePoll" @edit-poll="editPoll" @start-poll="startPoll" />
-
-    <section class="mt-6">
-      <h2>GET /api/v1/polls</h2>
-      <pre v-if="getResult">{{ getResult }}</pre>
-      <p v-else>Chargement...</p>
-    </section>
-
-    <section class="mt-4">
-      <h2>POST /api/v1/foo</h2>
-      <pre v-if="postResult">{{ postResult }}</pre>
-      <p v-else>Chargement...</p>
-    </section>
   </main>
 </template>

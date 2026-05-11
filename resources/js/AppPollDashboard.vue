@@ -14,11 +14,15 @@ const { fetchApiToRef, fetchApi } = useFetchApi();
 const { data: getResult, error: getError, fetchNow } = fetchApiToRef({ url: 'polls/' });
 
 // Données du formulaire de création.
+// Les options sont maintenant un tableau dynamique.
+// Cela permet d'ajouter ou de supprimer des options facilement.
 const newPoll = ref({
   title: '',
   question: '',
-  option1: '',
-  option2: '',
+  options: [
+    { label: '' },
+    { label: '' },
+  ],
 });
 
 // Contient l'id du sondage actuellement en cours de modification.
@@ -35,16 +39,36 @@ function handleError(err) {
   }
 }
 
+// Ajoute une nouvelle option vide dans le formulaire.
+// Vue met automatiquement l'affichage à jour grâce à la réactivité.
+function addOption() {
+  newPoll.value.options.push({ label: '' });
+}
+
+// Supprime une option du formulaire.
+// On garde toujours au minimum deux options, car un sondage doit proposer au moins deux choix.
+function removeOption(index) {
+  if (newPoll.value.options.length <= 2) {
+    alert('Un sondage doit contenir au moins deux options.');
+    return;
+  }
+
+  newPoll.value.options.splice(index, 1);
+}
+
 // Crée ou modifie un sondage à partir du formulaire.
 async function createPoll() {
   try {
     const data = {
       title: newPoll.value.title,
       question: newPoll.value.question,
-      options: [
-        { label: newPoll.value.option1 },
-        { label: newPoll.value.option2 },
-      ],
+
+      // On envoie toutes les options du tableau dynamique.
+      // trim() enlève les espaces inutiles au début et à la fin.
+      options: newPoll.value.options.map(option => ({
+        label: option.label.trim(),
+      })),
+
       is_draft: true,
       allow_multiple_choices: false,
       allow_vote_change: false,
@@ -85,8 +109,12 @@ function editPoll(poll) {
   newPoll.value = {
     title: poll.title || '',
     question: poll.question || '',
-    option1: poll.options?.[0]?.label || '',
-    option2: poll.options?.[1]?.label || '',
+
+    // On récupère toutes les options existantes du sondage.
+    // Si aucune option n'est disponible, on garde deux champs vides.
+    options: poll.options?.length
+      ? poll.options.map(option => ({ label: option.label }))
+      : [{ label: '' }, { label: '' }],
   };
 }
 
@@ -97,8 +125,10 @@ function cancelEdit() {
   newPoll.value = {
     title: '',
     question: '',
-    option1: '',
-    option2: '',
+    options: [
+      { label: '' },
+      { label: '' },
+    ],
   };
 }
 
@@ -157,40 +187,89 @@ usePolling(fetchNow);
     <form class="mb-6 space-y-3" @submit.prevent="createPoll">
       <div>
         <label class="block font-medium">Titre</label>
-        <input v-model="newPoll.title" type="text" class="w-full rounded border px-3 py-2"
-          placeholder="Exemple : Sondage de satisfaction" />
+        <input
+          v-model="newPoll.title"
+          type="text"
+          class="w-full rounded border px-3 py-2"
+          placeholder="Exemple : Sondage de satisfaction"
+        />
       </div>
 
       <div>
         <label class="block font-medium">Question</label>
-        <input v-model="newPoll.question" type="text" class="w-full rounded border px-3 py-2"
-          placeholder="Exemple : Quelle option préfères-tu ?" required />
+        <input
+          v-model="newPoll.question"
+          type="text"
+          class="w-full rounded border px-3 py-2"
+          placeholder="Exemple : Quelle option préfères-tu ?"
+          required
+        />
       </div>
 
-      <div>
-        <label class="block font-medium">Option 1</label>
-        <input v-model="newPoll.option1" type="text" class="w-full rounded border px-3 py-2"
-          placeholder="Exemple : Option A" required />
+      <!-- Liste dynamique des options.
+           v-for permet d'afficher autant de champs qu'il y a d'options dans le tableau. -->
+      <div
+        v-for="(option, index) in newPoll.options"
+        :key="index"
+      >
+        <label class="block font-medium">
+          Option {{ index + 1 }}
+        </label>
+
+        <div class="flex gap-2">
+          <input
+            v-model="option.label"
+            type="text"
+            class="w-full rounded border px-3 py-2"
+            :placeholder="`Exemple : Option ${index + 1}`"
+            required
+          />
+
+          <button
+            type="button"
+            class="rounded bg-red-600 px-3 py-2 text-white hover:bg-red-700"
+            @click="removeOption(index)"
+          >
+            Supprimer
+          </button>
+        </div>
       </div>
 
-      <div>
-        <label class="block font-medium">Option 2</label>
-        <input v-model="newPoll.option2" type="text" class="w-full rounded border px-3 py-2"
-          placeholder="Exemple : Option B" required />
-      </div>
-
-      <button type="submit" class="rounded bg-teal-600 px-4 py-2 text-white hover:bg-teal-700">
-        {{ editingPollId ? 'Modifier le sondage' : 'Créer le sondage' }}
+      <!-- Bouton pour ajouter une option supplémentaire. -->
+      <button
+        type="button"
+        class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+        @click="addOption"
+      >
+        Ajouter une option
       </button>
 
-      <!-- Bouton affiché uniquement quand on est en mode modification. -->
-      <button v-if="editingPollId" type="button" class="ml-2 rounded bg-gray-500 px-4 py-2 text-white hover:bg-gray-600"
-        @click="cancelEdit">
-        Annuler
-      </button>
+      <div>
+        <button
+          type="submit"
+          class="rounded bg-teal-600 px-4 py-2 text-white hover:bg-teal-700"
+        >
+          {{ editingPollId ? 'Modifier le sondage' : 'Créer le sondage' }}
+        </button>
+
+        <!-- Bouton affiché uniquement quand on est en mode modification. -->
+        <button
+          v-if="editingPollId"
+          type="button"
+          class="ml-2 rounded bg-gray-500 px-4 py-2 text-white hover:bg-gray-600"
+          @click="cancelEdit"
+        >
+          Annuler
+        </button>
+      </div>
     </form>
 
     <!-- Tableau des sondages récupérés depuis l'API. -->
-    <PollTable :polls="getResult || []" @delete-poll="deletePoll" @edit-poll="editPoll" @start-poll="startPoll" />
+    <PollTable
+      :polls="getResult || []"
+      @delete-poll="deletePoll"
+      @edit-poll="editPoll"
+      @start-poll="startPoll"
+    />
   </main>
 </template>

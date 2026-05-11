@@ -26,27 +26,59 @@
         <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
             <div class="h-16 flex items-center justify-between">
                 <div class="flex items-center gap-4">
-                    <a href="{{ url('/') }}" class="block hover:opacity-80 transition">
-                        {{ config('app.name') }}
-                    </a>
-                    <a href="{{ url('/posts') }}"
-                        class="block bg-teal-700 dark:bg-purple-900 px-3 py-1 rounded-md hover:bg-teal-800 dark:hover:bg-purple-800">
-                        {{ __('ui.posts.index.title') }}
-                    </a>
-                </div>
+    <!-- Logo / Nom de l'application -->
+    <a href="{{ url('/') }}" class="block hover:opacity-80 transition font-bold">
+        {{ config('app.name') }}
+    </a>
+
+    <!-- Accueil -->
+    <a href="{{ url('/') }}"
+        class="block bg-teal-700 dark:bg-purple-900 px-3 py-1 rounded-md hover:bg-teal-800 dark:hover:bg-purple-800">
+        Accueil
+    </a>
+
+    <!-- Posts -->
+    <a href="{{ url('/posts') }}"
+        class="block bg-teal-700 dark:bg-purple-900 px-3 py-1 rounded-md hover:bg-teal-800 dark:hover:bg-purple-800">
+        {{ __('ui.posts.index.title') }}
+    </a>
+
+    <!-- Dashboard des sondages -->
+    @auth
+        <a href="{{ route('polls.dashboard') }}"
+            class="block bg-teal-700 dark:bg-purple-900 px-3 py-1 rounded-md hover:bg-teal-800 dark:hover:bg-purple-800">
+            Mes sondages
+        </a>
+    @endauth
+</div>
 
                 @auth
-                    <a href="{{ url('/my-profile') }}" class="block hover:opacity-80 transition">
-                        <div
-                            class="h-8 w-8 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                            @if (Auth::user()->profile_picture)
-                                <img src="{{ asset('storage/' . Auth::user()->profile_picture) }}"
-                                    alt="{{ Auth::user()->username }}" class="w-full h-full object-cover">
-                            @else
-                                <img src="/icons/profile.svg" alt="{{ Auth::user()->username }}" class="h-8 w-8">
-                            @endif
-                        </div>
-                    </a>
+                    <div class="flex items-center gap-4">
+    <!-- Accès au profil -->
+    <a href="{{ url('/my-profile') }}" class="block hover:opacity-80 transition">
+        <div
+            class="h-8 w-8 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+            @if (Auth::user()->profile_picture)
+                <img src="{{ asset('storage/' . Auth::user()->profile_picture) }}"
+                    alt="{{ Auth::user()->username }}" class="w-full h-full object-cover">
+            @else
+                <img src="/icons/profile.svg" alt="{{ Auth::user()->username }}" class="h-8 w-8">
+            @endif
+        </div>
+    </a>
+
+    <!-- Déconnexion -->
+    <form method="POST" action="{{ url('/auth/logout') }}">
+        @csrf
+
+        <button
+            type="submit"
+            class="bg-red-600 px-3 py-1 rounded-md hover:bg-red-700 transition"
+        >
+            Déconnexion
+        </button>
+    </form>
+</div>
                 @else
                     <div class="flex items-center gap-2">
                         <a href="{{ url('/auth/login') }}"

@@ -7,6 +7,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PollVote extends Model
 {
+
+    /**
+     *  ⭐️ Liste des champs que Laravel peut remplir automatiquement.
+     *
+     * Chaque vote est lié :
+     * - à un sondage avec poll_id
+     * - à un utilisateur avec user_id
+     * - à une option choisie avec poll_option_id
+     */
+    protected $fillable = [
+        'poll_id',
+        'user_id',
+        'poll_option_id',
+    ];
+
     /**
      * Get the poll that owns the vote.
      */

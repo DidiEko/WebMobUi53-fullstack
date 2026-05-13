@@ -90,7 +90,6 @@ async function createPoll() {
       // Paramètres configurés depuis le formulaire.
       is_draft: newPoll.value.is_draft,
       allow_multiple_choices: newPoll.value.allow_multiple_choices,
-      allow_vote_change: false,
       results_public: newPoll.value.results_public,
       duration,
     };

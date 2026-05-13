@@ -36,7 +36,6 @@ class ApiPollController extends Controller
             'options.*.label' => ['required', 'string', 'max:255'],
             'is_draft' => ['boolean'],
             'allow_multiple_choices' => ['boolean'],
-            'allow_vote_change' => ['boolean'],
             'results_public' => ['boolean'],
             'duration' => ['nullable', 'integer', 'min:60'],
         ]);
@@ -56,7 +55,6 @@ class ApiPollController extends Controller
 
                 'is_draft' => $isDraft,
                 'allow_multiple_choices' => $validated['allow_multiple_choices'] ?? false,
-                'allow_vote_change' => $validated['allow_vote_change'] ?? false,
                 'results_public' => $validated['results_public'] ?? false,
                 'duration' => $validated['duration'] ?? null,
                 'started_at' => $isDraft ? null : now(),
@@ -109,7 +107,6 @@ class ApiPollController extends Controller
             'options' => ['required', 'array', 'min:2'],
             'options.*.label' => ['required', 'string', 'max:255'],
             'allow_multiple_choices' => ['boolean'],
-            'allow_vote_change' => ['boolean'],
             'results_public' => ['boolean'],
             'duration' => ['nullable', 'integer', 'min:60'],
         ]);
@@ -121,7 +118,6 @@ class ApiPollController extends Controller
                 'title' => $validated['title'] ?? null,
                 'question' => $validated['question'],
                 'allow_multiple_choices' => $validated['allow_multiple_choices'] ?? false,
-                'allow_vote_change' => $validated['allow_vote_change'] ?? false,
                 'results_public' => $validated['results_public'] ?? false,
                 'duration' => $validated['duration'] ?? null,
             ]);
@@ -200,17 +196,28 @@ class ApiPollController extends Controller
     /**
      * Affiche un sondage grâce à son token secret.
      */
-    public function show(string $token)
+    public function show(Request $request, string $token)
     {
-        $poll = Poll::with(['options' => function ($query) {
-            $query->withCount('votes');
-        }])
+        $poll = Poll::with([
+            'options' => function ($query) {
+                $query->withCount('votes');
+            },
+            'user',
+        ])
             ->where('secret_token', $token)
             ->first();
 
         if (!$poll) {
-            return response()->json(['message' => 'Poll not found.'], 404);
+            return response()->json([
+                'message' => 'Poll not found.',
+            ], 404);
         }
+
+        // On ajoute une information utile pour le frontend :
+        // savoir si l'utilisateur connecté est le propriétaire du sondage.
+        $poll->is_owner =
+            $request->user() &&
+            $request->user()->id === $poll->user_id;
 
         return $poll;
     }

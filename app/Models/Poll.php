@@ -21,7 +21,6 @@ class Poll extends Model
         'secret_token',
         'is_draft',
         'allow_multiple_choices',
-        'allow_vote_change',
         'results_public',
         'duration',
         'started_at',
@@ -38,7 +37,6 @@ class Poll extends Model
     protected $casts = [
         'is_draft' => 'boolean',
         'allow_multiple_choices' => 'boolean',
-        'allow_vote_change' => 'boolean',
         'results_public' => 'boolean',
         'started_at' => 'datetime',
         'ends_at' => 'datetime',

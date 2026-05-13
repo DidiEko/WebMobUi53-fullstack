@@ -161,7 +161,7 @@ usePolling(loadPoll);
             </p>
 
             <!-- Si le sondage est encore brouillon, on bloque le vote. -->
-            <p v-if="poll.is_draft">
+            <p v-if="poll.is_draft" class="rounded border border-yellow-300 bg-yellow-50 p-4 text-yellow-900">
                 Ce sondage n'est pas encore actif.
             </p>
 
@@ -188,7 +188,7 @@ usePolling(loadPoll);
 
             <!-- Résultats du sondage.
            Ils sont visibles après le vote ou si les résultats sont publics. -->
-            <section v-if="hasVoted || poll.results_public" class="mt-8 rounded border p-4">
+            <section v-if="hasVoted || poll.results_public || poll.is_owner" class="mt-8 rounded border p-4">
                 <h3 class="mb-4 text-lg font-bold">
                     Résultats
                 </h3>

@@ -222,121 +222,113 @@ class ApiPollController extends Controller
         return $poll;
     }
 
-    /**
-     * Permet de voter sur un sondage public via son token.
-     *
-     * Cette version gère :
-     * - le choix unique
-     * - le choix multiple
-     * - la vérification que les options appartiennent au bon sondage
-     * - l'interdiction de voter plusieurs fois sur un sondage à choix unique
-     */
-    public function vote(Request $request, string $token)
-    {
-        // On récupère le sondage via son token secret.
-        $poll = Poll::where('secret_token', $token)->first();
+/**
+ * Permet de voter sur un sondage public via son token.
+ *
+ * Cette version gère :
+ * - le choix unique
+ * - le choix multiple
+ * - la vérification que les options appartiennent au bon sondage
+ * - l'interdiction de voter plusieurs fois sur un sondage
+ */
+public function vote(Request $request, string $token)
+{
+    // On récupère le sondage via son token secret.
+    $poll = Poll::where('secret_token', $token)->first();
 
-        if (!$poll) {
-            return response()->json(['message' => 'Sondage introuvable.'], 404);
-        }
+    if (!$poll) {
+        return response()->json(['message' => 'Sondage introuvable.'], 404);
+    }
 
-        // On empêche de voter sur un sondage encore en brouillon.
-        if ($poll->is_draft) {
-            return response()->json(['message' => 'Ce sondage n’est pas encore actif.'], 422);
-        }
+    // On empêche de voter sur un sondage encore en brouillon.
+    if ($poll->is_draft) {
+        return response()->json(['message' => 'Ce sondage n’est pas encore actif.'], 422);
+    }
 
-        // Si le sondage a une date de fin et que cette date est dépassée,
-        // on empêche aussi le vote.
-        if ($poll->ends_at && now()->greaterThan($poll->ends_at)) {
-            return response()->json(['message' => 'Ce sondage est terminé.'], 422);
-        }
+    // Si le sondage a une date de fin et que cette date est dépassée,
+    // on empêche aussi le vote.
+    if ($poll->ends_at && now()->greaterThan($poll->ends_at)) {
+        return response()->json(['message' => 'Ce sondage est terminé.'], 422);
+    }
 
-        // Pour l’instant, on impose un utilisateur connecté pour voter,
-        // car la table poll_votes contient un user_id.
-        $user = $request->user();
+    // Pour ce projet, on impose un utilisateur connecté pour voter.
+    $user = $request->user();
 
-        if (!$user) {
-            return response()->json([
-                'message' => 'Vous devez être connecté pour voter.',
-            ], 401);
-        }
+    if (!$user) {
+        return response()->json([
+            'message' => 'Vous devez être connecté pour voter.',
+        ], 401);
+    }
 
-        // Si le sondage est en choix multiple, on attend un tableau d'options.
-        if ($poll->allow_multiple_choices) {
-            $validated = $request->validate([
-                'poll_option_ids' => ['required', 'array', 'min:1'],
-                'poll_option_ids.*' => ['required', 'integer', 'exists:poll_options,id'],
-            ]);
+    // Même en choix unique ou multiple, l'utilisateur ne peut soumettre qu'une seule fois.
+    $alreadyVoted = $poll->votes()
+        ->where('user_id', $user->id)
+        ->exists();
 
-            // On vérifie que toutes les options envoyées appartiennent bien au sondage actuel.
-            $validOptionIds = $poll->options()
-                ->whereIn('id', $validated['poll_option_ids'])
-                ->pluck('id')
-                ->toArray();
+    if ($alreadyVoted) {
+        return response()->json([
+            'message' => 'Vous avez déjà voté pour ce sondage.',
+        ], 422);
+    }
 
-            if (count($validOptionIds) !== count($validated['poll_option_ids'])) {
-                return response()->json([
-                    'message' => 'Une ou plusieurs options ne correspondent pas à ce sondage.',
-                ], 422);
-            }
-
-            // Pour éviter les doublons, on supprime les éventuels votes précédents de cet utilisateur
-            // puis on recrée les votes sélectionnés.
-            // Cela simplifie la logique pour le choix multiple.
-            $poll->votes()
-                ->where('user_id', $user->id)
-                ->delete();
-
-            foreach ($validOptionIds as $optionId) {
-                $poll->votes()->create([
-                    'poll_id' => $poll->id,
-                    'user_id' => $user->id,
-                    'poll_option_id' => $optionId,
-                ]);
-            }
-
-            return response()->json([
-                'message' => 'Vote enregistré.',
-            ]);
-        }
-
-        // Si le sondage est en choix unique, on attend un seul id d'option.
+    // Cas 1 : sondage à choix multiple.
+    if ($poll->allow_multiple_choices) {
         $validated = $request->validate([
-            'poll_option_id' => ['required', 'exists:poll_options,id'],
+            'poll_option_ids' => ['required', 'array', 'min:1'],
+            'poll_option_ids.*' => ['required', 'integer', 'exists:poll_options,id'],
         ]);
 
-        // Sécurité importante :
-        // on vérifie que l'option choisie appartient bien au sondage actuel.
-        $optionBelongsToPoll = $poll->options()
-            ->where('id', $validated['poll_option_id'])
-            ->exists();
+        // On vérifie que toutes les options envoyées appartiennent bien au sondage actuel.
+        $validOptionIds = $poll->options()
+            ->whereIn('id', $validated['poll_option_ids'])
+            ->pluck('id')
+            ->toArray();
 
-        if (!$optionBelongsToPoll) {
+        if (count($validOptionIds) !== count($validated['poll_option_ids'])) {
             return response()->json([
-                'message' => 'Cette option ne correspond pas à ce sondage.',
+                'message' => 'Une ou plusieurs options ne correspondent pas à ce sondage.',
             ], 422);
         }
 
-        // En choix unique, l'utilisateur ne peut voter qu'une seule fois.
-        $alreadyVoted = $poll->votes()
-            ->where('user_id', $user->id)
-            ->exists();
-
-        if ($alreadyVoted) {
-            return response()->json([
-                'message' => 'Vous avez déjà voté pour ce sondage.',
-            ], 422);
+        foreach ($validOptionIds as $optionId) {
+            $poll->votes()->create([
+                'poll_id' => $poll->id,
+                'user_id' => $user->id,
+                'poll_option_id' => $optionId,
+            ]);
         }
-
-        // Création du vote unique.
-        $poll->votes()->create([
-            'poll_id' => $poll->id,
-            'user_id' => $user->id,
-            'poll_option_id' => $validated['poll_option_id'],
-        ]);
 
         return response()->json([
             'message' => 'Vote enregistré.',
         ]);
     }
+
+    // Cas 2 : sondage à choix unique.
+    $validated = $request->validate([
+        'poll_option_id' => ['required', 'exists:poll_options,id'],
+    ]);
+
+    // Sécurité importante :
+    // on vérifie que l'option choisie appartient bien au sondage actuel.
+    $optionBelongsToPoll = $poll->options()
+        ->where('id', $validated['poll_option_id'])
+        ->exists();
+
+    if (!$optionBelongsToPoll) {
+        return response()->json([
+            'message' => 'Cette option ne correspond pas à ce sondage.',
+        ], 422);
+    }
+
+    // Création du vote unique.
+    $poll->votes()->create([
+        'poll_id' => $poll->id,
+        'user_id' => $user->id,
+        'poll_option_id' => $validated['poll_option_id'],
+    ]);
+
+    return response()->json([
+        'message' => 'Vote enregistré.',
+    ]);
+}
 }

@@ -14,8 +14,11 @@ const { fetchApi } = useFetchApi();
 // Contient le sondage chargé depuis l'API.
 const poll = ref(null);
 
-// Contient l'option choisie par l'utilisateur.
+// Contient l'option choisie pour les sondages à choix unique.
 const selectedOptionId = ref(null);
+
+// Contient les options choisies pour les sondages à choix multiple.
+const selectedOptionIds = ref([]);
 
 // Message affiché à l'utilisateur.
 const message = ref('');
@@ -37,6 +40,20 @@ const totalVotes = computed(() => {
     return poll.value.options.reduce((total, option) => {
         return total + option.votes_count;
     }, 0);
+});
+
+/**
+ * Vérifie si le sondage est terminé.
+ *
+ * Si ends_at est vide, le sondage n'a pas de limite de temps.
+ * Sinon, on compare la date de fin avec la date actuelle.
+ */
+const isExpired = computed(() => {
+    if (!poll.value?.ends_at) {
+        return false;
+    }
+
+    return new Date(poll.value.ends_at) < new Date();
 });
 
 /**
@@ -67,7 +84,14 @@ async function loadPoll() {
 
 // Envoie le vote à l'API.
 async function submitVote() {
-    if (!selectedOptionId.value) {
+    // Pour un sondage à choix multiple, on vérifie qu'au moins une checkbox est cochée.
+    if (poll.value?.allow_multiple_choices && selectedOptionIds.value.length === 0) {
+        message.value = 'Veuillez choisir au moins une option.';
+        return;
+    }
+
+    // Pour un sondage à choix unique, on vérifie qu'une radio est cochée.
+    if (!poll.value?.allow_multiple_choices && !selectedOptionId.value) {
         message.value = 'Veuillez choisir une option.';
         return;
     }
@@ -82,7 +106,10 @@ async function submitVote() {
                 'X-CSRF-TOKEN': props.csrfToken,
             },
             body: JSON.stringify({
-                poll_option_id: selectedOptionId.value,
+                // Si le sondage autorise plusieurs réponses, on envoie un tableau.
+                // Sinon, on envoie un seul id comme avant.
+                poll_option_ids: poll.value.allow_multiple_choices ? selectedOptionIds.value : null,
+                poll_option_id: poll.value.allow_multiple_choices ? null : selectedOptionId.value,
             }),
         });
 
@@ -94,6 +121,10 @@ async function submitVote() {
 
         message.value = 'Votre vote a bien été enregistré.';
         hasVoted.value = true;
+
+        // On vide les choix après le vote.
+        selectedOptionId.value = null;
+        selectedOptionIds.value = [];
 
         // On recharge le sondage pour mettre à jour les résultats.
         loadPoll();
@@ -121,18 +152,32 @@ usePolling(loadPoll);
                 {{ poll.title || 'Sondage' }}
             </h1>
 
-            <h2 class="mb-6 text-xl">
+            <h2 class="mb-2 text-xl">
                 {{ poll.question }}
             </h2>
+
+            <p class="mb-6 text-sm text-gray-600">
+                {{ poll.allow_multiple_choices ? 'Plusieurs réponses possibles' : 'Une seule réponse possible' }}
+            </p>
 
             <!-- Si le sondage est encore brouillon, on bloque le vote. -->
             <p v-if="poll.is_draft">
                 Ce sondage n'est pas encore actif.
             </p>
 
+            <p v-else-if="isExpired" class="rounded border border-red-300 bg-red-50 p-4 text-red-900">
+                Ce sondage est terminé. Il n’est plus possible de voter.
+            </p>
+
             <form v-else class="space-y-4" @submit.prevent="submitVote">
                 <label v-for="option in poll.options" :key="option.id" class="block rounded border p-3">
-                    <input v-model="selectedOptionId" type="radio" :value="option.id" class="mr-2" />
+                    <!-- Choix multiple : on utilise des checkboxes liées à un tableau. -->
+                    <input v-if="poll.allow_multiple_choices" v-model="selectedOptionIds" type="checkbox"
+                        :value="option.id" class="mr-2" />
+
+                    <!-- Choix unique : on utilise des boutons radio liés à une seule valeur. -->
+                    <input v-else v-model="selectedOptionId" type="radio" :value="option.id" class="mr-2" />
+
                     {{ option.label }}
                 </label>
 

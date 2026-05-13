@@ -23,6 +23,20 @@ const newPoll = ref({
     { label: '' },
     { label: '' },
   ],
+
+  // Paramètres du sondage.
+  // is_draft permet de choisir si le sondage reste en brouillon ou démarre directement.
+  is_draft: true,
+
+  // allow_multiple_choices permet d'autoriser plusieurs réponses.
+  allow_multiple_choices: false,
+
+  // results_public permet de rendre les résultats visibles publiquement.
+  results_public: true,
+
+  // Durée en minutes saisie dans le formulaire.
+  // Elle sera convertie en secondes avant l'envoi à Laravel.
+  duration_minutes: '',
 });
 
 // Contient l'id du sondage actuellement en cours de modification.
@@ -59,6 +73,10 @@ function removeOption(index) {
 // Crée ou modifie un sondage à partir du formulaire.
 async function createPoll() {
   try {
+    const duration = newPoll.value.duration_minutes
+      ? Number(newPoll.value.duration_minutes) * 60
+      : null;
+
     const data = {
       title: newPoll.value.title,
       question: newPoll.value.question,
@@ -69,11 +87,12 @@ async function createPoll() {
         label: option.label.trim(),
       })),
 
-      is_draft: true,
-      allow_multiple_choices: false,
+      // Paramètres configurés depuis le formulaire.
+      is_draft: newPoll.value.is_draft,
+      allow_multiple_choices: newPoll.value.allow_multiple_choices,
       allow_vote_change: false,
-      results_public: true,
-      duration: null,
+      results_public: newPoll.value.results_public,
+      duration,
     };
 
     if (editingPollId.value) {
@@ -115,6 +134,12 @@ function editPoll(poll) {
     options: poll.options?.length
       ? poll.options.map(option => ({ label: option.label }))
       : [{ label: '' }, { label: '' }],
+
+    // On récupère aussi les paramètres existants du sondage.
+    is_draft: poll.is_draft,
+    allow_multiple_choices: poll.allow_multiple_choices,
+    results_public: poll.results_public,
+    duration_minutes: poll.duration ? poll.duration / 60 : '',
   };
 }
 
@@ -129,6 +154,10 @@ function cancelEdit() {
       { label: '' },
       { label: '' },
     ],
+    is_draft: true,
+    allow_multiple_choices: false,
+    results_public: true,
+    duration_minutes: '',
   };
 }
 
@@ -187,89 +216,88 @@ usePolling(fetchNow);
     <form class="mb-6 space-y-3" @submit.prevent="createPoll">
       <div>
         <label class="block font-medium">Titre</label>
-        <input
-          v-model="newPoll.title"
-          type="text"
-          class="w-full rounded border px-3 py-2"
-          placeholder="Exemple : Sondage de satisfaction"
-        />
+        <input v-model="newPoll.title" type="text" class="w-full rounded border px-3 py-2"
+          placeholder="Exemple : Sondage de satisfaction" />
       </div>
 
       <div>
         <label class="block font-medium">Question</label>
-        <input
-          v-model="newPoll.question"
-          type="text"
-          class="w-full rounded border px-3 py-2"
-          placeholder="Exemple : Quelle option préfères-tu ?"
-          required
-        />
+        <input v-model="newPoll.question" type="text" class="w-full rounded border px-3 py-2"
+          placeholder="Exemple : Quelle option préfères-tu ?" required />
       </div>
 
       <!-- Liste dynamique des options.
            v-for permet d'afficher autant de champs qu'il y a d'options dans le tableau. -->
-      <div
-        v-for="(option, index) in newPoll.options"
-        :key="index"
-      >
+      <div v-for="(option, index) in newPoll.options" :key="index">
         <label class="block font-medium">
           Option {{ index + 1 }}
         </label>
 
         <div class="flex gap-2">
-          <input
-            v-model="option.label"
-            type="text"
-            class="w-full rounded border px-3 py-2"
-            :placeholder="`Exemple : Option ${index + 1}`"
-            required
-          />
+          <input v-model="option.label" type="text" class="w-full rounded border px-3 py-2"
+            :placeholder="`Exemple : Option ${index + 1}`" required />
 
-          <button
-            type="button"
-            class="rounded bg-red-600 px-3 py-2 text-white hover:bg-red-700"
-            @click="removeOption(index)"
-          >
+          <button type="button" class="rounded bg-red-600 px-3 py-2 text-white hover:bg-red-700"
+            @click="removeOption(index)">
             Supprimer
           </button>
         </div>
       </div>
 
       <!-- Bouton pour ajouter une option supplémentaire. -->
-      <button
-        type="button"
-        class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-        @click="addOption"
-      >
+      <button type="button" class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700" @click="addOption">
         Ajouter une option
       </button>
 
+      <!-- Paramètres du sondage. -->
+      <section class="mt-6 rounded border border-slate-300 bg-white p-4 space-y-4 text-slate-900">
+        <h2 class="font-semibold text-slate-900">
+          Paramètres du sondage
+        </h2>
+
+        <label class="flex items-center gap-3 text-slate-900">
+          <input v-model="newPoll.is_draft" type="checkbox" class="h-4 w-4" />
+          <span>Créer en brouillon</span>
+        </label>
+
+        <label class="flex items-center gap-3 text-slate-900">
+          <input v-model="newPoll.allow_multiple_choices" type="checkbox" class="h-4 w-4" />
+          <span>Autoriser plusieurs réponses</span>
+        </label>
+
+        <label class="flex items-center gap-3 text-slate-900">
+          <input v-model="newPoll.results_public" type="checkbox" class="h-4 w-4" />
+          <span>Rendre les résultats publics</span>
+        </label>
+
+        <div>
+          <label class="block font-medium text-slate-900">
+            Durée du sondage en minutes
+          </label>
+
+          <input v-model="newPoll.duration_minutes" type="number" min="1"
+            class="w-full rounded border px-3 py-2 text-slate-900" placeholder="Exemple : 60" />
+
+          <p class="mt-1 text-sm text-slate-600">
+            Laisse vide si le sondage n'a pas de durée limite.
+          </p>
+        </div>
+      </section>
+
       <div>
-        <button
-          type="submit"
-          class="rounded bg-teal-600 px-4 py-2 text-white hover:bg-teal-700"
-        >
+        <button type="submit" class="rounded bg-teal-600 px-4 py-2 text-white hover:bg-teal-700">
           {{ editingPollId ? 'Modifier le sondage' : 'Créer le sondage' }}
         </button>
 
         <!-- Bouton affiché uniquement quand on est en mode modification. -->
-        <button
-          v-if="editingPollId"
-          type="button"
-          class="ml-2 rounded bg-gray-500 px-4 py-2 text-white hover:bg-gray-600"
-          @click="cancelEdit"
-        >
+        <button v-if="editingPollId" type="button"
+          class="ml-2 rounded bg-gray-500 px-4 py-2 text-white hover:bg-gray-600" @click="cancelEdit">
           Annuler
         </button>
       </div>
     </form>
 
     <!-- Tableau des sondages récupérés depuis l'API. -->
-    <PollTable
-      :polls="getResult || []"
-      @delete-poll="deletePoll"
-      @edit-poll="editPoll"
-      @start-poll="startPoll"
-    />
+    <PollTable :polls="getResult || []" @delete-poll="deletePoll" @edit-poll="editPoll" @start-poll="startPoll" />
   </main>
 </template>
